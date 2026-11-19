@@ -1,0 +1,1 @@
+# app_prueba_fotos.py.
