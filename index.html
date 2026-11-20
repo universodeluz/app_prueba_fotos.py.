@@ -1,0 +1,310 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cargador de fotografías | Ventas Inmuebles Venezuela</title>
+<style>
+:root {
+  --azul:#071b35;
+  --dorado:#d6ad55;
+  --blanco:#ffffff;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  padding:20px 14px;
+  background:#f1f3f6;
+  color:#172333;
+  font-family:Arial,sans-serif;
+}
+main {
+  max-width:650px;
+  margin:20px auto;
+  background:white;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 5px 24px #0002;
+}
+header {
+  background:var(--azul);
+  color:white;
+  text-align:center;
+  padding:26px 16px;
+  border-bottom:5px solid var(--dorado);
+}
+header h1 { margin:0 0 8px; font-size:23px; }
+header p { margin:0; color:#e8d5a7; }
+.content { padding:20px; }
+.note {
+  background:#fff8e8;
+  border-left:4px solid var(--dorado);
+  padding:12px;
+  border-radius:6px;
+  font-size:14px;
+  line-height:1.5;
+}
+input[type=file] {
+  width:100%;
+  margin:18px 0;
+  padding:14px;
+  border:2px dashed #aab4c2;
+  border-radius:10px;
+  background:#f8fafc;
+}
+button {
+  border:0;
+  border-radius:9px;
+  padding:13px 18px;
+  font-size:15px;
+  font-weight:bold;
+  cursor:pointer;
+}
+#upload {
+  width:100%;
+  background:var(--azul);
+  color:white;
+}
+#upload:disabled { opacity:.5; }
+#copy {
+  background:var(--dorado);
+  color:#172333;
+  margin-top:12px;
+}
+#status {
+  margin:16px 0;
+  padding:12px;
+  border-radius:8px;
+  background:#edf2f7;
+  white-space:pre-wrap;
+  font-size:14px;
+  line-height:1.5;
+}
+.preview {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.photo {
+  border:1px solid #ddd;
+  border-radius:9px;
+  padding:8px;
+  overflow:hidden;
+}
+.photo img {
+  width:100%;
+  height:125px;
+  object-fit:cover;
+  border-radius:6px;
+}
+.photo p { font-size:12px; overflow-wrap:anywhere; }
+.links {
+  margin-top:18px;
+  overflow-wrap:anywhere;
+  font-size:13px;
+}
+.links a { color:#0756a5; }
+footer {
+  text-align:center;
+  padding:16px;
+  background:#f5f6f8;
+  font-size:12px;
+  color:#586477;
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>VENTAS INMUEBLES VENEZUELA</h1>
+  <p>Cargador de fotografías inmobiliarias</p>
+</header>
+
+<section class="content">
+  <div class="note">
+    Selecciona fotografías desde tu teléfono. Formatos permitidos:
+    JPG, PNG y WEBP. Tamaño máximo: 10 MB por fotografía.
+  </div>
+
+  <input id="files" type="file"
+    accept="image/jpeg,image/png,image/webp" multiple>
+
+  <div id="preview" class="preview"></div>
+
+  <button id="upload">SUBIR FOTOGRAFÍAS</button>
+  <div id="status">Selecciona una o varias fotografías para comenzar.</div>
+
+  <button id="copy" hidden>COPIAR TODOS LOS ENLACES</button>
+  <div id="links" class="links"></div>
+</section>
+
+<footer>
+  Ventas Inmuebles Venezuela · Confianza y profesionalismo
+</footer>
+</main>
+
+<script>
+const CLOUD_NAME = "e0dd469b3bb240d92a19071a4962a0";
+const UPLOAD_PRESET = "ventas_inmuebles_fotos";
+const FOLDER = "ventas_inmuebles_venezuela";
+const MAX_SIZE = 10 * 1024 * 1024;
+
+const input = document.getElementById("files");
+const preview = document.getElementById("preview");
+const statusBox = document.getElementById("status");
+const uploadButton = document.getElementById("upload");
+const copyButton = document.getElementById("copy");
+const linksBox = document.getElementById("links");
+
+let selectedFiles = [];
+let uploadedUrls = [];
+
+function showStatus(message) {
+  statusBox.textContent = message;
+}
+
+input.addEventListener("change", () => {
+  selectedFiles = Array.from(input.files || []);
+  preview.innerHTML = "";
+  linksBox.innerHTML = "";
+  uploadedUrls = [];
+  copyButton.hidden = true;
+
+  if (!selectedFiles.length) {
+    showStatus("No se seleccionaron fotografías.");
+    return;
+  }
+
+  let valid = 0;
+
+  selectedFiles.forEach(file => {
+    const allowed = ["image/jpeg","image/png","image/webp"].includes(file.type);
+
+    const card = document.createElement("div");
+    card.className = "photo";
+
+    if (!allowed || file.size > MAX_SIZE) {
+      card.textContent = file.name + " — Archivo no válido o supera 10 MB.";
+      preview.appendChild(card);
+      return;
+    }
+
+    valid++;
+    const img = document.createElement("img");
+    img.alt = "Vista previa";
+    img.src = URL.createObjectURL(file);
+
+    const name = document.createElement("p");
+    name.textContent = file.name;
+
+    card.append(img,name);
+    preview.appendChild(card);
+  });
+
+  showStatus(valid + " fotografía(s) válida(s) seleccionada(s).");
+});
+
+function uploadOne(file) {
+  return new Promise((resolve,reject) => {
+    const data = new FormData();
+    data.append("file",file);
+    data.append("upload_preset",UPLOAD_PRESET);
+    data.append("folder",FOLDER);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST",
+      "https://api.cloudinary.com/v1_1/" +
+      CLOUD_NAME + "/image/upload");
+
+    xhr.timeout = 120000;
+
+    xhr.onload = () => {
+      let result;
+      try {
+        result = JSON.parse(xhr.responseText);
+      } catch {
+        reject(new Error("Respuesta no válida de Cloudinary."));
+        return;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && result.secure_url) {
+        resolve(result.secure_url);
+      } else {
+        reject(new Error(
+          result.error?.message || "Error HTTP " + xhr.status
+        ));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Error de conexión."));
+    xhr.ontimeout = () => reject(new Error("Tiempo de espera agotado."));
+    xhr.send(data);
+  });
+}
+
+uploadButton.addEventListener("click", async () => {
+  const validFiles = selectedFiles.filter(file =>
+    ["image/jpeg","image/png","image/webp"].includes(file.type) &&
+    file.size <= MAX_SIZE
+  );
+
+  if (!validFiles.length) {
+    showStatus("Selecciona fotografías válidas antes de subir.");
+    return;
+  }
+
+  uploadButton.disabled = true;
+  uploadedUrls = [];
+  linksBox.innerHTML = "";
+  copyButton.hidden = true;
+
+  let errors = 0;
+
+  for (let i = 0; i < validFiles.length; i++) {
+    const file = validFiles[i];
+    showStatus("Subiendo fotografía " + (i+1) +
+      " de " + validFiles.length + ":\n" + file.name);
+
+    try {
+      const url = await uploadOne(file);
+      uploadedUrls.push(url);
+
+      const line = document.createElement("p");
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "Abrir fotografía " + (uploadedUrls.length);
+      line.appendChild(link);
+      linksBox.appendChild(line);
+
+    } catch (error) {
+      errors++;
+      const line = document.createElement("p");
+      line.textContent = file.name + ": " + error.message;
+      linksBox.appendChild(line);
+    }
+  }
+
+  if (uploadedUrls.length) copyButton.hidden = false;
+
+  showStatus(
+    "Proceso terminado.\nFotografías subidas: " +
+    uploadedUrls.length + "\nErrores: " + errors
+  );
+
+  uploadButton.disabled = false;
+});
+
+copyButton.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(uploadedUrls.join("\n"));
+    showStatus("Enlaces copiados correctamente.");
+  } catch {
+    showStatus("No se pudieron copiar automáticamente. Puedes copiar los enlaces que aparecen debajo.");
+  }
+});
+</script>
+</body>
+</html>
